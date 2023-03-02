@@ -37,7 +37,7 @@ int xe_display_enable(struct pci_dev *pdev, struct drm_driver *driver)
 
 	/* Detect if we need to wait for other drivers early on */
 	if (intel_modeset_probe_defer(pdev))
-		return EPROBE_DEFER;
+		return -EPROBE_DEFER;
 
 	driver->driver_features |= DRIVER_MODESET | DRIVER_ATOMIC;
 	driver->lastclose = intel_fbdev_restore_mode;
