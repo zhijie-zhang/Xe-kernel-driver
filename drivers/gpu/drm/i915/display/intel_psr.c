@@ -24,7 +24,7 @@
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_damage_helper.h>
 
-#include "display/intel_dp.h"
+#include "intel_dp.h"
 
 #include "i915_drv.h"
 #include "i915_reg.h"
