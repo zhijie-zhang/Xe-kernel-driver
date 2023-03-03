@@ -25,9 +25,9 @@
  *
  */
 
-#include "display/intel_de.h"
-#include "display/intel_display_trace.h"
-#include "display/skl_watermark.h"
+#include "intel_de.h"
+#include "intel_display_trace.h"
+#include "skl_watermark.h"
 
 #include "i915_drv.h"
 #include "intel_mchbar_regs.h"
