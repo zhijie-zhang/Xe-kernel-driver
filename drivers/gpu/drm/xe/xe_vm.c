@@ -885,12 +885,14 @@ static struct xe_vma *xe_vma_create(struct xe_vm *vm,
 	return vma;
 }
 
-static void vm_remove_extobj(struct xe_vma *vma)
+static bool vm_remove_extobj(struct xe_vma *vma)
 {
 	if (!list_empty(&vma->extobj.link)) {
 		vma->vm->extobj.entries--;
 		list_del_init(&vma->extobj.link);
+		return true;
 	}
+	return false;
 }
 
 static void xe_vma_destroy_late(struct xe_vma *vma)
@@ -931,6 +933,51 @@ static void vma_destroy_work_func(struct work_struct *w)
 	xe_vma_destroy_late(vma);
 }
 
+static struct xe_vma *
+bo_has_vm_references_locked(struct xe_bo *bo, struct xe_vm *vm,
+			    struct xe_vma *ignore)
+{
+	struct xe_vma *vma;
+
+	list_for_each_entry(vma, &bo->vmas, bo_link) {
+		if (vma != ignore && vma->vm == vm && !vma->destroyed)
+			return vma;
+	}
+
+	return NULL;
+}
+
+static bool bo_has_vm_references(struct xe_bo *bo, struct xe_vm *vm,
+				 struct xe_vma *ignore)
+{
+	struct ww_acquire_ctx ww;
+	bool ret;
+
+	xe_bo_lock(bo, &ww, 0, false);
+	ret = !!bo_has_vm_references_locked(bo, vm, ignore);
+	xe_bo_unlock(bo, &ww);
+
+	return ret;
+}
+
+static void __vm_insert_extobj(struct xe_vm *vm, struct xe_vma *vma)
+{
+	list_add(&vma->extobj.link, &vm->extobj.list);
+	vm->extobj.entries++;
+}
+
+static void vm_insert_extobj(struct xe_vm *vm, struct xe_vma *vma)
+{
+	struct xe_bo *bo = vma->bo;
+
+	lockdep_assert_held_write(&vm->lock);
+
+	if (bo_has_vm_references(bo, vm, vma))
+		return;
+
+	__vm_insert_extobj(vm, vma);
+}
+
 static void vma_destroy_cb(struct dma_fence *fence,
 			   struct dma_fence_cb *cb)
 {
@@ -956,11 +1003,19 @@ static void xe_vma_destroy(struct xe_vma *vma, struct dma_fence *fence)
 	} else {
 		xe_bo_assert_held(vma->bo);
 		list_del(&vma->bo_link);
+
 		spin_lock(&vm->notifier.list_lock);
 		list_del(&vma->notifier.rebind_link);
 		spin_unlock(&vm->notifier.list_lock);
-		if (!vma->bo->vm)
-			vm_remove_extobj(vma);
+
+		if (!vma->bo->vm && vm_remove_extobj(vma)) {
+			struct xe_vma *other;
+
+			other = bo_has_vm_references_locked(vma->bo, vm, NULL);
+
+			if (other)
+				__vm_insert_extobj(vm, other);
+		}
 	}
 
 	xe_vm_assert_held(vm);
@@ -2448,40 +2503,6 @@ out_error:
 	kfree(syncs);
 
 	return err;
-}
-
-static bool bo_has_vm_references(struct xe_bo *bo, struct xe_vm *vm,
-				 struct xe_vma *ignore)
-{
-	struct ww_acquire_ctx ww;
-	struct xe_vma *vma;
-	bool ret = false;
-
-	xe_bo_lock(bo, &ww, 0, false);
-	list_for_each_entry(vma, &bo->vmas, bo_link) {
-		if (vma != ignore && vma->vm == vm && !vma->destroyed) {
-			ret = true;
-			break;
-		}
-	}
-	xe_bo_unlock(bo, &ww);
-
-	return ret;
-}
-
-static int vm_insert_extobj(struct xe_vm *vm, struct xe_vma *vma)
-{
-	struct xe_bo *bo = vma->bo;
-
-	lockdep_assert_held_write(&vm->lock);
-
-	if (bo_has_vm_references(bo, vm, vma))
-		return 0;
-
-	list_add(&vma->extobj.link, &vm->extobj.list);
-	vm->extobj.entries++;
-
-	return 0;
 }
 
 static int __vm_bind_ioctl_lookup_vma(struct xe_vm *vm, struct xe_bo *bo,
