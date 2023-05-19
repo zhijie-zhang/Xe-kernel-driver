@@ -13,6 +13,7 @@
 #include "intel_display_types.h"
 #include "intel_dpt.h"
 #include "intel_fb.h"
+#include "intel_frontbuffer.h"
 
 #ifdef I915
 /*
@@ -1923,11 +1924,13 @@ int intel_framebuffer_init(struct intel_framebuffer *intel_fb,
 	int i;
 #ifdef I915
 	unsigned tiling, stride;
+#endif
 
 	intel_fb->frontbuffer = intel_frontbuffer_get(obj);
 	if (!intel_fb->frontbuffer)
 		return -ENOMEM;
 
+#ifdef I915
 	i915_gem_object_lock(obj, NULL);
 	tiling = i915_gem_object_get_tiling(obj);
 	stride = i915_gem_object_get_stride(obj);
@@ -1974,8 +1977,6 @@ int intel_framebuffer_init(struct intel_framebuffer *intel_fb,
 	}
 	ttm_bo_unreserve(&obj->ttm);
 #endif
-
-	atomic_set(&intel_fb->bits, 0);
 
 	if (!drm_any_plane_has_format(&dev_priv->drm,
 				      mode_cmd->pixel_format,
