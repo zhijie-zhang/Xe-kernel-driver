@@ -9,7 +9,6 @@
 #include "intel_display.h"
 #include "intel_display_types.h"
 #include "intel_fb.h"
-#include "intel_frontbuffer.h"
 #include "intel_plane_initial.h"
 
 static bool

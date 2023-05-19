@@ -13,7 +13,6 @@
 #include "intel_display_types.h"
 #include "intel_dpt.h"
 #include "intel_fb.h"
-#include "intel_frontbuffer.h"
 
 #ifdef I915
 /*
