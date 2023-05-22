@@ -10,7 +10,6 @@
 
 #include <linux/fb.h>
 
-#include <drm/drm_aperture.h>
 #include <drm/drm_drv.h>
 #include <drm/drm_managed.h>
 #include <drm/xe_drm.h>
@@ -198,11 +197,6 @@ int xe_display_init_noirq(struct xe_device *xe)
 	intel_bw_init_hw(xe);
 
 	intel_device_info_runtime_init(xe);
-
-	err = drm_aperture_remove_conflicting_pci_framebuffers(to_pci_dev(xe->drm.dev),
-							       xe->drm.driver);
-	if (err)
-		return err;
 
 	err = intel_display_driver_probe_noirq(xe);
 	if (err)
