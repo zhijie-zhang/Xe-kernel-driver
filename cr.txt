@@ -1,0 +1,57 @@
+Code review for tag:xe-rev1-2023-05-02
+
+General:
+- Multiple checkpatch issues for many files. Please make sure no warnings/errors appear.
+
+xe_drv.h:
+- DRIVER_TIMESTAMP never used
+- DRIVER_DATE looks a bit old...
+
+xe_module.c:
+- Do we still need to keep the enable_guc param ? Isn't the exec list path broken ?
+
+xe_bo.h:
+- PPAT_CACHED_PDE is defined as 0. Is this correct or it should be BIT_ULL(0) ?
+  If it is 0, code in gen8_pde_encode is confusing.
+
+xe_drm.h:
+- Use short format in license, no need to copy entire license text.
+- Engine ioctls - why it is called engine ? You are not creating an engine, you are creating
+                  an LRC which is assigned to some engine class. Isn't a context a more
+		  appropriate name ? (I don't refer to the engine_class struct which is fine)
+- The file is organized in a way all structs appear at the order of the respective ioctls.
+  However, the first struct is out of place (drm_xe_engine_class_instance). Please move it
+  below to the engine part.
+- Some structures have full documentation, some lack it (e.g. drm_xe_query_mem_usage).
+  Please complete structure and fields documentation. This is critical in uapi file.
+- In drm_xe_device_query, the size field is used to pass the size to be copied from user to driver.
+  However if it is 0, the driver just returns the required size. This should be documented in that
+  that field as it is a uapi behavior (and in all other places in xe_drm.h this mechanism appears).
+
+xe_device.c:
+- Line 114: Why keep this line ?
+
+xe_query.c:
+- Line 68: No need to print error/info on kmalloc failure. You will see a big kernel log dump.
+           And anyway, it is not a parameter check, so using XE_IOCTL_ERR is misleading.
+	   Please apply this to everywhere you do kmalloc (and its variants).
+- Line 384: Isn't this redundant ? You already check correctness of index to array.
+
+
+
+
+
+
+
+
+
+
+
+
+
+-------- END OF CODE REVIEW -------------
+
+-------- For Oded, please ignore ----------
+TODO:
+- xe_driver_fops
+-
