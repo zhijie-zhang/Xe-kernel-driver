@@ -1,0 +1,195 @@
+Code review for tag:xe-rev1-2023-05-02
+
+-------- Comments sent on 24/5 -------------
+
+General:
+- Multiple checkpatch issues for many files. Please make sure no warnings/errors appear.
+- Multiple BUG_ON (over 200), and I believe 99% of them has no justification to do it.
+  It's not justified to crash the host if you got a bad pointer from the calling function, or
+  if some other parameter is not between the valid values. Just do drm_* and return -EINVAL.
+- Same thing for WARN_ON. I would *strongly* request that you convert many of them to drm_* and
+  just return error because in the data center, WARN_ON is often defined to behave same as BUG_ON.
+
+xe_macros.h:
+- XE_IOCTL_ERR is defined to call drm_info. This is not allowed as you enable a user to spam the
+  kernel log. Please change that macro to use drm_dbg.
+- Also, please remove the FILE+LINE print. The drm_dbg macro will print the function and that tends
+  to be enough. If you want to print FILE+LINE, use ftrace.
+
+xe_drv.h:
+- DRIVER_TIMESTAMP never used
+- DRIVER_DATE looks a bit old...
+
+xe_module.c:
+- Do we still need to keep the enable_guc param ? Isn't the exec list path broken ?
+
+xe_drm.h:
+- Use short format in license, no need to copy entire license text.
+- Engine ioctls - why it is called engine ? You are not creating an engine, you are creating
+                  an LRC which is assigned to some engine class. Isn't a context a more
+                  appropriate name ? (I don't refer to the engine_class struct which is fine)
+- The file is organized in a way all structs appear at the order of the respective ioctls.
+  However, the first struct is out of place (drm_xe_engine_class_instance). Please move it
+  below to the engine part.
+- Some structures have full documentation, some lack it (e.g. drm_xe_query_mem_usage).
+  Please complete structure and fields documentation. This is critical in uapi file.
+- In drm_xe_device_query, the size field is used to pass the size to be copied from user to driver.
+  However if it is 0, the driver just returns the required size. This should be documented in that
+  that field as it is a uapi behavior (and in all other places in xe_drm.h this mechanism appears).
+- Line 272: In most places, defines appear after the relevant field, but in this case the defines
+            appear before which can be confusing. Please try to align all the places in this file
+            to one method.
+
+xe_device.c:
+- Line 114: Why keep this line ?
+
+xe_query.c:
+- Line 68: No need to print error/info on kmalloc failure. You will see a big kernel log dump.
+           And anyway, it is not a parameter check, so using XE_IOCTL_ERR is misleading.
+           Please apply this to everywhere you do kmalloc (and its variants).
+- Line 85: Here we return -EFAULT but on Line 156 we return -ENOSPC on the exact same error.
+           Please make sure this is aligned on all ioctls to -EFAULT.
+- Line 384: Isn't this redundant ? You already check correctness of index to array.
+
+xe_mmio.h:
+- xe_mmio_wait32 reg & val arguments are not in the same order as intel_wait_for_register in i915.
+  We are setting us up to fail when copying stuff from i915.
+
+xe_bo.h:
+- PPAT_CACHED_PDE is defined as 0. Is this correct or it should be BIT_ULL(0) ?
+  If it is 0, code in gen8_pde_encode is confusing.
+
+xe_vm.c:
+- Line 3301: remove extra ;
+- xe_vm_lookup() - the locking pattern here looks wrong. Usually it should be:
+  1. lock
+  2. load/find object
+  3. if found -> get (increase refcnt of object)
+  4. unlock
+  When you do the get after the unlock, you are open to a race where that object was already
+  deleted by another thread and therefore, you are holding a garbage pointer
+- xe_vm_destroy_ioctl() - I think this is not protected against concurrency. Two threads that
+	will call it to destroy the same vm object might result in a race.
+	assuming we have thread A & B, both threads can reach up to the call to
+	xe_vm_close_and_put (line 1935) having a valid vm pointer. Then, let's say Thread A
+	executes that function, which will make that vm object invalid. Then Thread B will try
+	to execute that function and that will cause a crash.
+- Line 1124: I can understand you are exiting D3 state, but WHY are you doing this here ?
+
+-------- End of comments sent on 24/5 -------------
+
+-------- Start of comments sent on 1/6 -------------
+
+General: Use of defines in the middle of functions is really making it hard to read the code.
+         And is very uncommon practice. I can understand defines of flags inside structure, and
+	 even defines before functions, but just in the middle of the function makes the reader
+	 lose track of the code. I would like to request to modify only those parts.
+
+xe_vm_types.h:
+- Line 175: Either XE_VM_FLAGS_64K should be XE_VM_FLAG_64K or all other XE_VM_FLAG_* should be
+            XE_VM_FLAGS_*
+	    I would also love to have some documentation on what each flag means. It's not trivial
+	    to understand that from the code.
+
+xe_bo.h:
+- Line 23: Where is the STOLEN define being used? I only found code that checks if that flag is
+           set
+
+xe_bo.c:
+- __xe_bo_create_locked(): Are you sure the bo will always be destroyed (kfree) if a failure
+                           happens during this function ? AFAICS, the bo can either be destroyed
+			   by a direct call to xe_bo_free(), or through callback from ttm called
+			   xe_ttm_bo_destroy(). However, xe_ttm_bo_destroy is assigned only when
+			   calling ttm_bo_init_reserved(). However, you can exit __xe_bo_create_locked
+			   in line 1009 (which is before ttm_bo_init_reserved). In addition, what
+			   happens if the call to ttm_bo_init_reserved fails ?
+
+- Line 1096: after returning from __xe_bo_create_locked, if there was an error and the bo was
+             allocated in xe_bo_create_locked_range(), don't we need to make sure it is freed ?
+
+xe_vm.c:
+- Line 1182: I have no idea what this comment means... Could you please explain what the migrate
+             vm code is doing there and WHY do we need it in case the migration flag is not set ?
+
+- number_gts: This local variable appears in 3 different functions in this file and each time is
+              calculated in a different manner :) Why not keep this number in the device data
+	      structure and set it once during init ? (Maybe it also happens in other files, idk)
+
+- Line 1888: what is this asid ? Is it related to PASID when using ATS or is this something else ?
+
+xe_drm.h:
+- Line 356: You need to add comment for the flags, in case there is some dependency or limitation.
+            e.g. afaics, you can't create two vms, one with DRM_XE_VM_CREATE_FAULT_MODE and
+	    the other without. Either all vms are in fault mode or not. This should be written
+	    here explicitly in the uapi file.
+
+xe_guc_ads.c:
+- No need for guc_ads_regset_size function, use field directly.
+- Use define instead of guc_ads_capture_size.
+- calculate_golden_lrc_size() - you are calculating golden ring size for all possible engine
+	types but not taking into account if engine have several hw instances. Is is OK?
+- Line 452: not all struct fields (which are used later) are initialized.
+
+xe_guc_ct_types.h:
+- Line 17: XE_GUC_CT_SELFTEST is always defined, why do we need it?
+- mutex lock in xe_guc_ct: same lock used for G2H and H2G actions so these CTs can't work
+  in parallel. Is there a reason why this can't be separated to two different locks ? If so,
+  I think it is worth commenting that somewhere in the code.
+
+xe_guc_pc.c
+- pc_gucrc_disable(): disabling registers which were never enabled (lines 748-750).
+- Line 896: Add mutex destroy for pc->freq_lock.
+
+xe_guc_ct.c
+- Line 45, 50: Please use define for uninitialized fence.
+- Line 139: need to add mutex_destroy for ct->lock.
+- Line 142: It appears that ct->fence_context is initialized but never used. If so, please remove
+- Although it's explained at the top, please add defines for offsets in the CT buffer:
+  H2G_CTB_DESC_OFFSET, G2H_CTB_DESC_OFFSET, H2G_CTB_BUF_OFFSET and G2H_CTB_BUF_OFFSET.
+- parse_g2h_event(): add default handling to switch.
+- parse_g2h_msg(): header variable is unused.
+- Lines 927: can't you use CIRC_SPACE instead of doing this manually ?
+- xe_guc_ct_fast_path(): problematic use of ct->fast_lock spinlock:
+                         g2h_read() can take some time to execute. Same for dequeue_one_g2h which
+			 also calls to g2h_read(). spinlock protected code should execute fast
+- xe_guc_tlb_invalidation_done_handler(): it asserts that the ct mutex is locked, but I didn't see
+                                          anywhere in the call stack of this function that the
+					  mutex is locked
+
+xe_guc_submit.c
+- Line 230: mutex_init(&guc->submission_state.lock); without mutex_destroy.
+- Lines 387, 396(!) and 399: please add defines which holds the calculations and use it structure
+  definitions.
+- wq_wait_for_space(), Line 526: no handling in case there is no available space. Actually, it
+  looks like this if statement is redundant since you check it again two lines after. This code is
+  very confusing, I recommend to refactor this.
+- wq_item_append(): Lines 571 - 572 - Please add define instead of 3. Leaving it to the user to
+  understand from where this +3 came from is not helpful. Also there is no indication
+  on success/fail, need to add return code.
+- submit_engine(): There is no indication on success/fail, need to add return code.
+- guc_engine_run_job(): maybe it's possible to merge assertions? There are 7 assertions before
+  emitting the job. Maybe add engine_operational() which take care of these assertions?
+  Also, if job is not submitted to the engine, I think this function should return ERR_VALUE
+  to the drm scheduler.
+
+xe_pci.c:
+- Line 462: Consider using pcim_enable_device ?
+            I see other drm drivers (drivers/gpu/drm/tiny/bochs.c for example) using it.
+
+xe_force_wake.c
+- Line 44: mutex_init(&fw->lock); without mutex_destroy.
+
+xe_pcode.c:
+- Line 278: mutex_init(&gt->pcode.lock); without mutex_destroy.
+
+xe_ttm_vram_mgr.c:
+- Line 342: mutex_init(&mgr->lock); without mutex_destroy.
+
+-------- End of comments sent on 1/6 -------------
+
+-------- END OF CODE REVIEW -------------
+
+-------- For Oded, please ignore ----------
+TODO:
+- xe_driver_fops
+- preempt_rebind_work_func
