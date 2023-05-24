@@ -2,6 +2,17 @@ Code review for tag:xe-rev1-2023-05-02
 
 General:
 - Multiple checkpatch issues for many files. Please make sure no warnings/errors appear.
+- Multiple BUG_ON (over 200), and I believe 99% of them has no justification to do it.
+  It's not justified to crash the host if you got a bad pointer from the calling function, or
+  if some other parameter is not between the valid values. Just do drm_* and return -EINVAL.
+- Same thing for WARN_ON. I would *strongly* request that you convert many of them to drm_* and
+  just return error because in the data center, WARN_ON is often defined to behave same as BUG_ON.
+
+xe_macros.h:
+- XE_IOCTL_ERR is defined to call drm_info. This is not allowed as you enable a user to spam the
+  kernel log. Please change that macro to use drm_dbg.
+- Also, please remove the FILE+LINE print. The drm_dbg macro will print the function and that tends
+  to be enough. If you want to print FILE+LINE, use ftrace.
 
 xe_drv.h:
 - DRIVER_TIMESTAMP never used
@@ -10,15 +21,11 @@ xe_drv.h:
 xe_module.c:
 - Do we still need to keep the enable_guc param ? Isn't the exec list path broken ?
 
-xe_bo.h:
-- PPAT_CACHED_PDE is defined as 0. Is this correct or it should be BIT_ULL(0) ?
-  If it is 0, code in gen8_pde_encode is confusing.
-
 xe_drm.h:
 - Use short format in license, no need to copy entire license text.
 - Engine ioctls - why it is called engine ? You are not creating an engine, you are creating
                   an LRC which is assigned to some engine class. Isn't a context a more
-		  appropriate name ? (I don't refer to the engine_class struct which is fine)
+                  appropriate name ? (I don't refer to the engine_class struct which is fine)
 - The file is organized in a way all structs appear at the order of the respective ioctls.
   However, the first struct is out of place (drm_xe_engine_class_instance). Please move it
   below to the engine part.
@@ -27,6 +34,9 @@ xe_drm.h:
 - In drm_xe_device_query, the size field is used to pass the size to be copied from user to driver.
   However if it is 0, the driver just returns the required size. This should be documented in that
   that field as it is a uapi behavior (and in all other places in xe_drm.h this mechanism appears).
+- Line 272: In most places, defines appear after the relevant field, but in this case the defines
+            appear before which can be confusing. Please try to align all the places in this file
+            to one method.
 
 xe_device.c:
 - Line 114: Why keep this line ?
@@ -34,13 +44,38 @@ xe_device.c:
 xe_query.c:
 - Line 68: No need to print error/info on kmalloc failure. You will see a big kernel log dump.
            And anyway, it is not a parameter check, so using XE_IOCTL_ERR is misleading.
-	   Please apply this to everywhere you do kmalloc (and its variants).
+           Please apply this to everywhere you do kmalloc (and its variants).
+- Line 85: Here we return -EFAULT but on Line 156 we return -ENOSPC on the exact same error.
+           Please make sure this is aligned on all ioctls to -EFAULT.
 - Line 384: Isn't this redundant ? You already check correctness of index to array.
 
+xe_mmio.h:
+- xe_mmio_wait32 reg & val arguments are not in the same order as intel_wait_for_register in i915.
+  We are setting us up to fail when copying stuff from i915.
 
+xe_bo.c:
+-
 
+xe_bo.h:
+- PPAT_CACHED_PDE is defined as 0. Is this correct or it should be BIT_ULL(0) ?
+  If it is 0, code in gen8_pde_encode is confusing.
 
-
+xe_vm.c:
+- Line 3301: remove extra ;
+- xe_vm_lookup() - the locking pattern here looks wrong. Usually it should be:
+  1. lock
+  2. load/find object
+  3. if found -> get (increase refcnt of object)
+  4. unlock
+  When you do the get after the unlock, you are open to a race where that object was already
+  deleted by another thread and therefore, you are holding a garbage pointer
+- xe_vm_destroy_ioctl() - I think this is not protected against concurrency. Two threads that
+	will call it to destroy the same vm object might result in a race.
+	assuming we have thread A & B, both threads can reach up to the call to
+	xe_vm_close_and_put (line 1935) having a valid vm pointer. Then, let's say Thread A
+	executes that function, which will make that vm object invalid. Then Thread B will try
+	to execute that function and that will cause a crash.
+- Line 1124: I can understand you are exiting D3 state, but WHY are you doing this here ?
 
 
 
