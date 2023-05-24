@@ -130,9 +130,10 @@ static int __xe_pin_fb_vma_ggtt(struct intel_framebuffer *fb,
 	/* TODO: Consider sharing framebuffer mapping?
 	 * embed i915_vma inside intel_framebuffer
 	 */
+	xe_device_mem_access_get(ggtt->gt->xe);
 	ret = mutex_lock_interruptible(&ggtt->lock);
 	if (ret)
-		return ret;
+		goto out;
 
 	align = XE_PAGE_SIZE;
 	if (xe_bo_is_vram(bo) && ggtt->flags & XE_GGTT_FLAGS_64K)
@@ -146,7 +147,7 @@ static int __xe_pin_fb_vma_ggtt(struct intel_framebuffer *fb,
 		ret = xe_ggtt_insert_special_node_locked(ggtt, &vma->node, size,
 							 align, 0);
 		if (ret)
-			goto out;
+			goto out_unlock;
 
 		for (x = 0; x < size; x += XE_PAGE_SIZE)
 			xe_ggtt_set_pte(ggtt, vma->node.start + x, xe_ggtt_pte_encode(bo, x));
@@ -160,7 +161,7 @@ static int __xe_pin_fb_vma_ggtt(struct intel_framebuffer *fb,
 		ret = xe_ggtt_insert_special_node_locked(ggtt, &vma->node, size,
 							 align, 0);
 		if (ret)
-			goto out;
+			goto out_unlock;
 
 		ggtt_ofs = vma->node.start;
 
@@ -174,9 +175,10 @@ static int __xe_pin_fb_vma_ggtt(struct intel_framebuffer *fb,
 	}
 
 	xe_ggtt_invalidate(to_gt(xe));
-
-out:
+out_unlock:
 	mutex_unlock(&ggtt->lock);
+out:
+	xe_device_mem_access_put(ggtt->gt->xe);
 	return ret;
 }
 
