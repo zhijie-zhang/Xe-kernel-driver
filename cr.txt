@@ -1,5 +1,7 @@
 Code review for tag:xe-rev1-2023-05-02
 
+-------- Comments sent on 24/5 -------------
+
 General:
 - Multiple checkpatch issues for many files. Please make sure no warnings/errors appear.
 - Multiple BUG_ON (over 200), and I believe 99% of them has no justification to do it.
@@ -77,10 +79,7 @@ xe_vm.c:
 	to execute that function and that will cause a crash.
 - Line 1124: I can understand you are exiting D3 state, but WHY are you doing this here ?
 
-
-
-
-
+-------- End of comments sent on 24/5 -------------
 
 
 
