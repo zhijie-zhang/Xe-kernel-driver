@@ -9,7 +9,6 @@
 #include <linux/align.h>
 #include <linux/string_helpers.h>
 #include <linux/xarray.h>
-#include <linux/string_helpers.h>
 
 #include <drm/drm_managed.h>
 #include <drm/drm_print.h>
