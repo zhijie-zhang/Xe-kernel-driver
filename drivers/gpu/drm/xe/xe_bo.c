@@ -615,8 +615,8 @@ static int xe_bo_move(struct ttm_buffer_object *ttm_bo, bool evict,
 						     DMA_RESV_USAGE_BOOKKEEP,
 						     true,
 						     MAX_SCHEDULE_TIMEOUT);
-		if (timeout <= 0) {
-			ret = -ETIME;
+		if (timeout < 0) {
+			ret = timeout;
 			goto out;
 		}
 		ttm_bo_move_null(ttm_bo, new_mem);
