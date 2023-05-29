@@ -7,7 +7,7 @@
 
 int intel_hdcp_gsc_init(struct drm_i915_private *i915)
 {
-	drm_err(&i915->drm, "HCDP support not yet implemented\n");
+	drm_info(&i915->drm, "HDCP support not yet implemented\n");
 	return -ENODEV;
 }
 
