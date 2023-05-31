@@ -57,7 +57,6 @@ static struct xe_reg_sr_entry *alloc_entry(struct xe_reg_sr *sr)
 		if (!arr)
 			return NULL;
 
-		kfree(sr->pool.arr);
 		sr->pool.arr = arr;
 		sr->pool.allocated += sr->pool.grow_step;
 	}
