@@ -14,7 +14,7 @@ static inline struct xe_gt *__fake_uncore_to_gt(struct fake_uncore *uncore)
 {
 	struct xe_device *xe = container_of(uncore, struct xe_device, uncore);
 
-	return to_gt(xe);
+	return xe_root_mmio_gt(xe);
 }
 
 static inline u32 intel_uncore_read(struct fake_uncore *uncore,
