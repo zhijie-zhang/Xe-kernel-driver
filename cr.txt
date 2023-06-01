@@ -80,6 +80,11 @@ xe_vm.c:
 
 -------- Start of comments sent on 1/6 -------------
 
+General: Use of defines in the middle of functions is really making it hard to read the code.
+         And is very uncommon practice. I can understand defines of flags inside structure, and
+	 even defines before functions, but just in the middle of the function makes the reader
+	 lose track of the code. I would like to request to modify only those parts.
+
 xe_vm_types.h:
 - Line 175: Either XE_VM_FLAGS_64K should be XE_VM_FLAG_64K or all other XE_VM_FLAG_* should be
             XE_VM_FLAGS_*
@@ -117,6 +122,68 @@ xe_drm.h:
             e.g. afaics, you can't create two vms, one with DRM_XE_VM_CREATE_FAULT_MODE and
 	    the other without. Either all vms are in fault mode or not. This should be written
 	    here explicitly in the uapi file.
+
+xe_guc_ads.c:
+- No need for guc_ads_regset_size function, use field directly.
+- Use define instead of guc_ads_capture_size.
+- calculate_golden_lrc_size() - you are calculating golden ring size for all possible engine
+	types but not taking into account if engine have several hw instances. Is is OK?
+- Line 452: not all struct fields (which are used later) are initialized.
+
+xe_guc_ct_types.h:
+- Line 17: XE_GUC_CT_SELFTEST is always defined, why do we need it?
+- mutex lock in xe_guc_ct: same lock used for G2H and H2G actions so these CTs can't work
+  in parallel. Is there a reason why this can't be separated to two different locks ? If so,
+  I think it is worth commenting that somewhere in the code.
+
+xe_guc_pc.c
+- pc_gucrc_disable(): disabling registers which were never enabled (lines 748-750).
+- Line 896: Add mutex destroy for pc->freq_lock.
+
+xe_guc_ct.c
+- Line 45, 50: Please use define for uninitialized fence.
+- Line 139: need to add mutex_destroy for ct->lock.
+- Line 142: It appears that ct->fence_context is initialized but never used. If so, please remove
+- Although it's explained at the top, please add defines for offsets in the CT buffer:
+  H2G_CTB_DESC_OFFSET, G2H_CTB_DESC_OFFSET, H2G_CTB_BUF_OFFSET and G2H_CTB_BUF_OFFSET.
+- parse_g2h_event(): add default handling to switch.
+- parse_g2h_msg(): header variable is unused.
+- Lines 927: can't you use CIRC_SPACE instead of doing this manually ?
+- xe_guc_ct_fast_path(): problematic use of ct->fast_lock spinlock:
+                         g2h_read() can take some time to execute. Same for dequeue_one_g2h which
+			 also calls to g2h_read(). spinlock protected code should execute fast
+- xe_guc_tlb_invalidation_done_handler(): it asserts that the ct mutex is locked, but I didn't see
+                                          anywhere in the call stack of this function that the
+					  mutex is locked
+
+xe_guc_submit.c
+- Line 230: mutex_init(&guc->submission_state.lock); without mutex_destroy.
+- Lines 387, 396(!) and 399: please add defines which holds the calculations and use it structure
+  definitions.
+- wq_wait_for_space(), Line 526: no handling in case there is no available space. Actually, it
+  looks like this if statement is redundant since you check it again two lines after. This code is
+  very confusing, I recommend to refactor this.
+- wq_item_append(): Lines 571 - 572 - Please add define instead of 3. Leaving it to the user to
+  understand from where this +3 came from is not helpful. Also there is no indication
+  on success/fail, need to add return code.
+- submit_engine(): There is no indication on success/fail, need to add return code.
+- guc_engine_run_job(): maybe it's possible to merge assertions? There are 7 assertions before
+  emitting the job. Maybe add engine_operational() which take care of these assertions?
+  Also, if job is not submitted to the engine, I think this function should return ERR_VALUE
+  to the drm scheduler.
+
+xe_pci.c:
+- Line 462: Consider using pcim_enable_device ?
+            I see other drm drivers (drivers/gpu/drm/tiny/bochs.c for example) using it.
+
+xe_force_wake.c
+- Line 44: mutex_init(&fw->lock); without mutex_destroy.
+
+xe_pcode.c:
+- Line 278: mutex_init(&gt->pcode.lock); without mutex_destroy.
+
+xe_ttm_vram_mgr.c:
+- Line 342: mutex_init(&mgr->lock); without mutex_destroy.
 
 -------- End of comments sent on 1/6 -------------
 
