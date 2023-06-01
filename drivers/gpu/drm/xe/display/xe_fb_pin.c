@@ -123,14 +123,14 @@ static int __xe_pin_fb_vma_ggtt(struct intel_framebuffer *fb,
 {
 	struct xe_bo *bo = intel_fb_obj(&fb->base);
 	struct xe_device *xe = to_xe_device(fb->base.dev);
-	struct xe_ggtt *ggtt = to_gt(xe)->mem.ggtt;
+	struct xe_ggtt *ggtt = xe_device_get_root_tile(xe)->mem.ggtt;
 	u32 align;
 	int ret;
 
 	/* TODO: Consider sharing framebuffer mapping?
 	 * embed i915_vma inside intel_framebuffer
 	 */
-	xe_device_mem_access_get(gt_to_xe(ggtt->gt));
+	xe_device_mem_access_get(tile_to_xe(ggtt->tile));
 	ret = mutex_lock_interruptible(&ggtt->lock);
 	if (ret)
 		goto out;
@@ -174,11 +174,11 @@ static int __xe_pin_fb_vma_ggtt(struct intel_framebuffer *fb,
 					   rot_info->plane[i].dst_stride);
 	}
 
-	xe_ggtt_invalidate(to_gt(xe));
+	xe_ggtt_invalidate(ggtt);
 out_unlock:
 	mutex_unlock(&ggtt->lock);
 out:
-	xe_device_mem_access_put(gt_to_xe(ggtt->gt));
+	xe_device_mem_access_put(tile_to_xe(ggtt->tile));
 	return ret;
 }
 
@@ -240,7 +240,7 @@ err:
 static void __xe_unpin_fb_vma(struct i915_vma *vma)
 {
 	struct xe_device *xe = to_xe_device(vma->bo->ttm.base.dev);
-	struct xe_ggtt *ggtt = to_gt(xe)->mem.ggtt;
+	struct xe_ggtt *ggtt = xe_device_get_root_tile(xe)->mem.ggtt;
 
 	if (vma->dpt)
 		xe_bo_unpin_map_no_vm(vma->dpt);
