@@ -52,6 +52,7 @@ initial_plane_bo(struct xe_device *xe,
 		 struct intel_initial_plane_config *plane_config)
 {
 	struct xe_gt *gt0 = xe_device_get_gt(xe, 0);
+	struct xe_tile *tile0 = xe_device_get_root_tile(xe);
 	struct xe_bo *bo;
 	resource_size_t phys_base;
 	u32 base, size, flags;
@@ -64,7 +65,7 @@ initial_plane_bo(struct xe_device *xe,
 
 	base = round_down(plane_config->base, page_size);
 	if (IS_DGFX(xe)) {
-		u64 __iomem *gte = gt0->mem.ggtt->gsm;
+		u64 __iomem *gte = tile0->mem.ggtt->gsm;
 		u64 pte;
 
 		gte += base / XE_PAGE_SIZE;
@@ -115,7 +116,7 @@ initial_plane_bo(struct xe_device *xe,
 			page_size);
 	size -= base;
 
-	bo = xe_bo_create_pin_map_at(xe, gt0, NULL, size, phys_base,
+	bo = xe_bo_create_pin_map_at(xe, &tile0->primary_gt, NULL, size, phys_base,
 				     ttm_bo_type_kernel, flags);
 	if (IS_ERR(bo)) {
 		drm_dbg(&xe->drm,
