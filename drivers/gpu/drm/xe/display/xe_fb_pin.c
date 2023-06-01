@@ -45,6 +45,7 @@ static int __xe_pin_fb_vma_dpt(struct intel_framebuffer *fb,
 			       struct i915_vma *vma)
 {
 	struct xe_device *xe = to_xe_device(fb->base.dev);
+	struct xe_tile *tile0 = xe_device_get_root_tile(xe);
 	struct xe_bo *bo = intel_fb_obj(&fb->base), *dpt;
 	u32 dpt_size, size = bo->ttm.base.size;
 
@@ -55,17 +56,17 @@ static int __xe_pin_fb_vma_dpt(struct intel_framebuffer *fb,
 		dpt_size = ALIGN(intel_rotation_info_size(&view->rotated) * 8,
 				 XE_PAGE_SIZE);
 
-	dpt = xe_bo_create_pin_map(xe, to_gt(xe), NULL, dpt_size,
+	dpt = xe_bo_create_pin_map(xe, tile0, NULL, dpt_size,
 				  ttm_bo_type_kernel,
 				  XE_BO_CREATE_VRAM0_BIT |
 				  XE_BO_CREATE_GGTT_BIT);
 	if (IS_ERR(dpt))
-		dpt = xe_bo_create_pin_map(xe, to_gt(xe), NULL, dpt_size,
+		dpt = xe_bo_create_pin_map(xe, tile0, NULL, dpt_size,
 					   ttm_bo_type_kernel,
 					   XE_BO_CREATE_STOLEN_BIT |
 					   XE_BO_CREATE_GGTT_BIT);
 	if (IS_ERR(dpt))
-		dpt = xe_bo_create_pin_map(xe, to_gt(xe), NULL, dpt_size,
+		dpt = xe_bo_create_pin_map(xe, tile0, NULL, dpt_size,
 					   ttm_bo_type_kernel,
 					   XE_BO_CREATE_SYSTEM_BIT |
 					   XE_BO_CREATE_GGTT_BIT);
