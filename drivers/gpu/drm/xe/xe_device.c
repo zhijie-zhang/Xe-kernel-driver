@@ -28,6 +28,7 @@
 #include "xe_pcode.h"
 #include "xe_pm.h"
 #include "xe_query.h"
+#include "xe_tile.h"
 #include "xe_ttm_stolen_mgr.h"
 #include "xe_ttm_sys_mgr.h"
 #include "xe_vm.h"
@@ -244,6 +245,7 @@ static void xe_device_sanitize(struct drm_device *drm, void *arg)
 
 int xe_device_probe(struct xe_device *xe)
 {
+	struct xe_tile *tile;
 	struct xe_gt *gt;
 	int err;
 	u8 id;
@@ -253,8 +255,12 @@ int xe_device_probe(struct xe_device *xe)
 	if (err)
 		return err;
 
-	for_each_gt(gt, xe, id) {
-		err = xe_gt_alloc(xe, gt);
+	for_each_tile(tile, xe, id) {
+		err = xe_tile_alloc(tile);
+		if (err)
+			return err;
+
+		err = xe_gt_alloc(xe, &tile->primary_gt);
 		if (err)
 			return err;
 	}
@@ -289,8 +295,12 @@ int xe_device_probe(struct xe_device *xe)
 
 	xe_ttm_sys_mgr_init(xe);
 
-	for_each_gt(gt, xe, id) {
-		err = xe_gt_init_noalloc(gt);
+	for_each_tile(tile, xe, id) {
+		err = xe_tile_init_noalloc(tile);
+		if (err)
+			goto err_irq_shutdown;
+
+		err = xe_gt_init_noalloc(&tile->primary_gt);
 		if (err)
 			goto err_irq_shutdown;
 	}
