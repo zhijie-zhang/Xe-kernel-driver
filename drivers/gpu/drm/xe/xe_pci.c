@@ -496,6 +496,7 @@ static int xe_info_init(struct xe_device *xe,
 	const struct xe_graphics_desc *graphics_desc = NULL;
 	const struct xe_media_desc *media_desc = NULL;
 	u32 graphics_gmdid_revid = 0, media_gmdid_revid = 0;
+	struct xe_tile *tile;
 	struct xe_gt *gt;
 	u8 id;
 
@@ -558,7 +559,11 @@ static int xe_info_init(struct xe_device *xe,
 	xe->info.tile_count = 1 + graphics_desc->max_remote_tiles;
 
 	for (id = 0; id < xe->info.tile_count; ++id) {
-		gt = xe->gt + id;
+		tile = &xe->tiles[id];
+		tile->xe = xe;
+		tile->id = id;
+
+		gt = &tile->primary_gt;
 		gt->info.id = id;
 		gt->xe = xe;
 
