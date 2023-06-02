@@ -306,7 +306,10 @@ struct sg_table *xe_bo_get_sg(struct xe_bo *bo);
  */
 static inline unsigned int xe_sg_segment_size(struct device *dev)
 {
-	size_t max = min_t(size_t, UINT_MAX, dma_max_mapping_size(dev));
+	struct scatterlist __maybe_unused sg;
+	size_t max = BIT_ULL(sizeof(sg.length) * 8) - 1;
+
+	max = min_t(size_t, max, dma_max_mapping_size(dev));
 
 	/*
 	 * The iommu_dma_map_sg() function ensures iova allocation doesn't
