@@ -35,7 +35,7 @@ static u32 intel_cursor_base(const struct intel_plane_state *plane_state)
 	u32 base;
 
 #ifdef I915
-	if (INTEL_INFO(dev_priv)->display.cursor_needs_physical)
+	if (DISPLAY_INFO(dev_priv)->cursor_needs_physical)
 		base = sg_dma_address(intel_fb_obj(plane_state->hw.fb)->mm.pages->sgl);
 	else
 #endif
