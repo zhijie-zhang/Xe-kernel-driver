@@ -330,6 +330,9 @@ struct xe_device {
 	/** @ordered_wq: used to serialize compute mode resume */
 	struct workqueue_struct *ordered_wq;
 
+	/** @unordered_wq: used to serialize unordered work, mostly display */
+	struct workqueue_struct *unordered_wq;
+
 	/** @tiles: device tiles */
 	struct xe_tile tiles[XE_MAX_TILES_PER_DEVICE];
 

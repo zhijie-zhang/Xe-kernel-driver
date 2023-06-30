@@ -139,10 +139,7 @@ static struct drm_driver driver = {
 	.open = xe_file_open,
 	.postclose = xe_file_close,
 
-	.prime_handle_to_fd = drm_gem_prime_handle_to_fd,
-	.prime_fd_to_handle = drm_gem_prime_fd_to_handle,
 	.gem_prime_import = xe_gem_prime_import,
-	.gem_prime_mmap = drm_gem_prime_mmap,
 
 	.dumb_create = xe_bo_dumb_create,
 	.dumb_map_offset = drm_gem_ttm_dumb_map_offset,
@@ -165,6 +162,9 @@ static void xe_device_destroy(struct drm_device *dev, void *dummy)
 
 	if (xe->ordered_wq)
 		destroy_workqueue(xe->ordered_wq);
+
+	if (xe->unordered_wq)
+		destroy_workqueue(xe->unordered_wq);
 
 	ttm_device_fini(&xe->ttm);
 }
@@ -215,8 +215,9 @@ struct xe_device *xe_device_create(struct pci_dev *pdev,
 	INIT_LIST_HEAD(&xe->pinned.evicted);
 
 	xe->ordered_wq = alloc_ordered_workqueue("xe-ordered-wq", 0);
-	if (!xe->ordered_wq) {
-		drm_err(&xe->drm, "Failed to allocate xe-ordered-wq\n");
+	xe->unordered_wq = alloc_workqueue("xe-unordered-wq", 0, 0);
+	if (!xe->ordered_wq || !xe->unordered_wq) {
+		drm_err(&xe->drm, "Failed to allocate xe workqueues\n");
 		err = -ENOMEM;
 		goto err_put;
 	}

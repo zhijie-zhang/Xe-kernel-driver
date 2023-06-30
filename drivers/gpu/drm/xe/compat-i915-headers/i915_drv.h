@@ -127,6 +127,9 @@ static inline struct drm_i915_private *kdev_to_i915(struct device *kdev)
 #define IS_JSL_EHL_DISPLAY_STEP(xe, first, last) (IS_JSL_EHL(xe) && IS_DISPLAY_STEP(xe, first, last))
 #define IS_MTL_DISPLAY_STEP(xe, first, last) (IS_METEORLAKE(xe) && IS_DISPLAY_STEP(xe, first, last))
 
+/* FIXME: Add subplatform here */
+#define IS_MTL_GRAPHICS_STEP(xe, sub, first, last) (IS_METEORLAKE(xe) && IS_DISPLAY_STEP(xe, first, last))
+
 #define IS_DG2_G10(xe) ((xe)->info.subplatform == XE_SUBPLATFORM_DG2_G10)
 #define IS_DG2_G11(xe) ((xe)->info.subplatform == XE_SUBPLATFORM_DG2_G11)
 #define IS_DG2_G12(xe) ((xe)->info.subplatform == XE_SUBPLATFORM_DG2_G12)

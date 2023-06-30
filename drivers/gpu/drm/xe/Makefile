@@ -200,10 +200,12 @@ xe-$(CONFIG_DRM_XE_DISPLAY) += \
 	i915-display/intel_hotplug_irq.o \
 	i915-display/intel_hti.o \
 	i915-display/intel_lspcon.o \
+	i915-display/intel_modeset_lock.o \
 	i915-display/intel_modeset_setup.o \
 	i915-display/intel_modeset_verify.o \
 	i915-display/intel_panel.o \
 	i915-display/intel_pipe_crc.o \
+	i915-display/intel_pmdemand.o \
 	i915-display/intel_pps.o \
 	i915-display/intel_psr.o \
 	i915-display/intel_qp_tables.o \

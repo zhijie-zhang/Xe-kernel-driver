@@ -56,3 +56,6 @@ void i965_disable_vblank(struct drm_crtc *crtc) {}
 void i8xx_disable_vblank(struct drm_crtc *crtc) {}
 void g4x_hdmi_init(struct drm_i915_private *dev_priv,
 		   i915_reg_t hdmi_reg, enum port port) {}
+int g4x_hdmi_connector_atomic_check(struct drm_connector *connector,
+                                    struct drm_atomic_state *state)
+{ return -ENODEV; }

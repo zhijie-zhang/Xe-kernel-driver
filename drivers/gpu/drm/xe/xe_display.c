@@ -109,7 +109,7 @@ int xe_display_create(struct xe_device *xe)
 	drmm_mutex_init(&xe->drm, &xe->display.audio.mutex);
 	drmm_mutex_init(&xe->drm, &xe->display.wm.wm_mutex);
 	drmm_mutex_init(&xe->drm, &xe->display.pps.mutex);
-	drmm_mutex_init(&xe->drm, &xe->display.hdcp.comp_mutex);
+	drmm_mutex_init(&xe->drm, &xe->display.hdcp.hdcp_mutex);
 	xe->enabled_irq_mask = ~0;
 
 	xe->params.invert_brightness = -1;
