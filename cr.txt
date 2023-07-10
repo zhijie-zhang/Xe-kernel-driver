@@ -187,9 +187,38 @@ xe_ttm_vram_mgr.c:
 
 -------- End of comments sent on 1/6 -------------
 
--------- END OF CODE REVIEW -------------
+-------- Start of comments on rev3 -------------
 
--------- For Oded, please ignore ----------
-TODO:
-- xe_driver_fops
-- preempt_rebind_work_func
+VM unbind - When the user asks for partial unbind, the driver unbinds the entire range and
+            then rebinds the relevant ranges. While this happens, the driver makes sure there
+	    are no compute jobs on this VM. This method won't work in future GPUs where there
+	    can be network traffic running in parallel which use this VM. You can't stop receiving
+	    network traffic.
+
+xe_vm_create:
+- Why do we need to lock the new vm's dma resv object during part of this function ? The vm was
+  just allocated, we only manipulate it, who else can touch it at this point ?
+- In the flags check the DRM_XE_VM_CREATE defines are used, which is wrong. The check should be
+  done using the XE_VM_FLAG defines, as xe_vm_create_ioctl() use these defines before calling
+  xe_vm_create()
+
+guc_engine_suspend_wait():
+- Why do we need guc_read_stopped(guc) in condition? When changing
+  guc->submission_state.stopped we are not signaling the WQ, only when changing
+  e->guc->suspend_pending.
+
+__guc_engine_fini_async():
+- Why checking if it's not ENGINE_FLAG_KERNEL if in calling function
+  guc_engine_fini_async we check if it is ENGINE_FLAG_KERNEL and executing the same code.
+
+xe_guc.c
+- guc_write_params(): typo Initialise -> Initialize
+
+xe_exec_ioctl:
+- Engine is not "put" in case of failure in a few of the validations
+
+
+-------- End of comments on rev3 -------------
+
+
+-------- END OF CODE REVIEW -------------
