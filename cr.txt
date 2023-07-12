@@ -217,6 +217,18 @@ xe_guc.c
 xe_exec_ioctl:
 - Engine is not "put" in case of failure in a few of the validations
 
+Defining structures inside structures:
+- Although this is something that is not unheard of in the kernel, it makes some of the more
+  complex structures to be totally unreadable. This is even more visible in case a structure
+  definition is duplicated with a small change and the encompassing structure now includes the
+  two definitions. In AMD and in habana, we (almost) never define structures inside a structure.
+  Each structure is defined independently, and then an instance is declared inside the structures
+  that include it. It makes the code more structured, cleaner and easier to read.
+
+  For example, look at the difference between struct amdgpu_device or struct hl_device to
+  struct xe_device. For an even uglier structure, look at xe_tile, where you have 3 levels of
+  nesting. For duplication, look at struct xe_file where the same structure definition repeats
+  twice.
 
 -------- End of comments on rev3 -------------
 
