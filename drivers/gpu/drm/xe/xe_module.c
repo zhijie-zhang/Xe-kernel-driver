@@ -14,9 +14,9 @@
 #include "xe_pci.h"
 #include "xe_sched_job.h"
 
-bool enable_guc = true;
-module_param_named_unsafe(enable_guc, enable_guc, bool, 0444);
-MODULE_PARM_DESC(enable_guc, "Enable GuC submission");
+bool force_execlist = false;
+module_param_named_unsafe(force_execlist, force_execlist, bool, 0444);
+MODULE_PARM_DESC(force_execlist, "Force Execlist submission");
 
 bool enable_display = true;
 module_param_named(enable_display, enable_display, bool, 0444);
