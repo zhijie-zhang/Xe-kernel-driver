@@ -72,7 +72,7 @@ retry:
 	if (notifier_seq == vma->userptr.notifier_seq)
 		return 0;
 
-	pages = kmalloc(sizeof(*pages) * num_pages, GFP_KERNEL);
+	pages = kvmalloc_array(num_pages, sizeof(*pages), GFP_KERNEL);
 	if (!pages)
 		return -ENOMEM;
 
@@ -152,7 +152,7 @@ mm_closed:
 
 out:
 	release_pages(pages, pinned);
-	kfree(pages);
+	kvfree(pages);
 
 	if (!(ret < 0)) {
 		vma->userptr.notifier_seq = notifier_seq;
